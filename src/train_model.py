@@ -45,6 +45,14 @@ model = XGBClassifier(
 )
 model.fit(X_train, y_train)
 
+# --- Save model to /opt/ml/model ---
+model_dir = os.environ.get("SM_MODEL_DIR", "/opt/ml/model")
+os.makedirs(model_dir, exist_ok=True)
+model_path = os.path.join(model_dir, "titanic_model.joblib")
+
+joblib.dump(model, model_path)
+print(f"✅ Model saved to {model_path}")
+
 """# --- Evaluate ---
 y_pred = model.predict(X_test)
 accuracy = accuracy_score(y_test, y_pred)
