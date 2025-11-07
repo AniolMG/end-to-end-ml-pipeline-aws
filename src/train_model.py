@@ -2,7 +2,6 @@ import os
 import argparse
 import pandas as pd
 from sklearn.model_selection import train_test_split
-#from sklearn.metrics import accuracy_score, f1_score, precision_score, recall_score, roc_auc_score
 from xgboost import XGBClassifier
 import joblib
 import json
@@ -52,40 +51,3 @@ model_path = os.path.join(model_dir, "titanic_model.joblib")
 
 joblib.dump(model, model_path)
 print(f"✅ Model saved to {model_path}")
-
-"""# --- Evaluate ---
-y_pred = model.predict(X_test)
-accuracy = accuracy_score(y_test, y_pred)
-f1 = f1_score(y_test, y_pred)
-precision = precision_score(y_test, y_pred)
-recall = recall_score(y_test, y_pred)
-auc = roc_auc_score(y_test, y_pred)
-
-print(f"Accuracy: {accuracy:.4f}")
-print(f"F1-score: {f1:.4f}")
-
-# --- Save model ---
-os.makedirs(output_dir, exist_ok=True)
-joblib.dump(model, os.path.join(output_dir, "titanic_model.joblib"))
-
-# --- Save metrics in SageMaker-compatible format ---
-metrics = {
-    "metrics": {
-        "accuracy": {"value": accuracy},
-        "f1": {"value": f1},
-        "precision": {"value": precision},
-        "recall": {"value": recall},
-        "auc": {"value": auc}
-    }
-}
-
-# Save locally and upload to S3
-metrics_dir = "metrics"
-os.makedirs(metrics_dir, exist_ok=True)
-metrics_path = os.path.join(metrics_dir, "titanic_metrics.json")
-
-with open(metrics_path, "w") as f:
-    json.dump(metrics, f)
-
-s3 = boto3.client("s3")
-s3.upload_file(metrics_path, args.bucket, "metrics/titanic_metrics.json")"""

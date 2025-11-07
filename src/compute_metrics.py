@@ -38,15 +38,36 @@ model = joblib.load(model_path)
 y_pred = model.predict(X)
 metrics = {
     "binary_classification_metrics": {
-        "accuracy": {"value": accuracy_score(y, y_pred)},
-        "f1": {"value": f1_score(y, y_pred)},
-        "precision": {"value": precision_score(y, y_pred)},
-        "recall": {"value": recall_score(y, y_pred)},
-        "auc": {"value": roc_auc_score(y, y_pred)}
+        "accuracy": {
+            "value": accuracy_score(y, y_pred),
+            "standard_deviation": 0.0
+        },
+        "f1": {
+            "value": f1_score(y, y_pred),
+            "standard_deviation": 0.0
+        },
+        "precision": {
+            "value": precision_score(y, y_pred),
+            "standard_deviation": 0.0
+        },
+        "recall": {
+            "value": recall_score(y, y_pred),
+            "standard_deviation": 0.0
+        },
+        "auc": {
+            "value": roc_auc_score(y, y_pred),
+            "standard_deviation": 0.0
+        }
     }
 }
 
 # Save metrics to output directory
-os.makedirs(args.output_metrics, exist_ok=True)
+"""os.makedirs(args.output_metrics, exist_ok=True)
 with open(os.path.join(args.output_metrics, "metrics.json"), "w") as f:
+    json.dump(metrics, f)"""
+
+output_path = os.path.join(args.output_metrics, "metrics.json")
+with open(output_path, "w") as f:
     json.dump(metrics, f)
+print(f"✅ Metrics written to {output_path}")
+
