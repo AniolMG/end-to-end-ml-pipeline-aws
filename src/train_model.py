@@ -4,8 +4,6 @@ import pandas as pd
 from sklearn.model_selection import train_test_split
 from xgboost import XGBClassifier
 import joblib
-import json
-import boto3
 
 # --- Parse hyperparameters ---
 parser = argparse.ArgumentParser()
