@@ -13,7 +13,7 @@ parser.add_argument("--output-metrics", type=str, required=True)
 args = parser.parse_args()
 
 # Load dataset
-df = pd.read_csv(os.path.join(args.input_data, "titanic_data.csv"))
+df = pd.read_csv(args.input_data)
 df = df.dropna(subset=["Age"])
 df["Sex"] = df["Sex"].map({"male": 0, "female": 1})
 X = df[["Age", "Sex", "Pclass"]]
@@ -31,7 +31,7 @@ else:
 
 
 # Load trained model
-model_path = os.path.join(args.input_model, "titanic_model.joblib")
+model_path = os.path.join(args.input_model, "titanic_model.joblib") 
 model = joblib.load(model_path)
 
 # Compute predictions & metrics

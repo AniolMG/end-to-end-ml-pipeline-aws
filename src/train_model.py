@@ -1,7 +1,6 @@
 import os
 import argparse
 import pandas as pd
-from sklearn.model_selection import train_test_split
 from xgboost import XGBClassifier
 import joblib
 
@@ -12,6 +11,7 @@ parser.add_argument("--eta", type=float, default=0.3)
 parser.add_argument("--objective", type=str, default="binary:logistic")
 parser.add_argument("--num_round", type=int, default=200)
 parser.add_argument("--bucket", type=str)
+parser.add_argument("--train_file", type=str, required=True)
 args = parser.parse_args()
 
 # --- SageMaker paths ---
@@ -19,17 +19,12 @@ input_dir = "/opt/ml/input/data/train"
 output_dir = "/opt/ml/model"
 
 # --- Load data ---
-data_path = os.path.join(input_dir, "titanic_data.csv")
+data_path = os.path.join(input_dir, args.train_file)
 df = pd.read_csv(data_path)
 df = df.dropna(subset=['Age'])
 df['Sex'] = df['Sex'].map({'male': 0, 'female': 1})
 X = df[['Age', 'Sex', 'Pclass']]
 y = df['Survived']
-
-# --- Train-test split ---
-X_train, X_test, y_train, y_test = train_test_split(
-    X, y, test_size=0.2, random_state=5, stratify=y
-)
 
 # --- Train model ---
 model = XGBClassifier(
@@ -40,7 +35,7 @@ model = XGBClassifier(
     random_state=5,
     eval_metric="logloss"
 )
-model.fit(X_train, y_train)
+model.fit(X, y)
 
 # --- Save model to /opt/ml/model ---
 model_dir = os.environ.get("SM_MODEL_DIR", "/opt/ml/model")
