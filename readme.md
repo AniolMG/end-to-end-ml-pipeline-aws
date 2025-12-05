@@ -261,12 +261,12 @@ To push Docker images to ECR Public and allow your Lambda function to fetch mode
 ### 6.1 Policy for IAM User
 
 Below is a full policy JSON that grants access to:
-- Your S3 bucket containing model artifacts
-- Private ECR repository (if needed)
-- Public ECR repository for pushing images
-- Lambda (for deployments)
-- SageMaker Model Registry (to fetch model location)
-- CloudWatch logs (for Lambda monitoring)
+- S3 bucket containing your ML artifacts
+- Private ECR repositories in your account (to push/pull images)
+- ECR authorization token (needed for Docker login to ECR)
+- Lambda (to create and manage Lambda functions)
+- SageMaker (to access the Model Registry and fetch model locations)
+- CloudWatch Logs (for monitoring Lambda execution)
 
 ```json
 {
@@ -284,27 +284,20 @@ Below is a full policy JSON that grants access to:
             ]
         },
         {
-            "Sid": "PrivateECRAccess",
+            "Sid": "PrivateECRFullAccess",
             "Effect": "Allow",
             "Action": [
                 "ecr:*"
             ],
             "Resource": [
-                "arn:aws:ecr:eu-west-3:344809604964:repository/titanic-lambda"
+                "arn:aws:ecr:eu-west-3:344809604964:repository/*"
             ]
         },
         {
-            "Sid": "ECRPublicAccess",
+            "Sid": "ECRAuthToken",
             "Effect": "Allow",
             "Action": [
-                "ecr-public:CreateRepository",
-                "ecr-public:BatchCheckLayerAvailability",
-                "ecr-public:CompleteLayerUpload",
-                "ecr-public:GetAuthorizationToken",
-                "ecr-public:InitiateLayerUpload",
-                "ecr-public:PutImage",
-                "ecr-public:UploadLayerPart",
-                "sts:GetServiceBearerToken"
+                "ecr:GetAuthorizationToken"
             ],
             "Resource": "*"
         },
@@ -351,19 +344,25 @@ Now your Access key and Secret access key have ben generated. It's **very import
 
 Also, make sure you don't push these keys to any public repository, since other people could use the credentials to assume the identity of your IAM user. This is only a test project with no sensible data, so no damage could be done, but still it's recommended to always employ good practises.
 
-## 7️⃣ Containerization & Deployment to ECR Public
+## 7️⃣ Containerization & Deployment to ECR
 
 Once the model is registered and approved, the next step is to **package it in a Docker container** for deployment. This ensures the same environment used during training is replicated in production.
 
-The following steps are for pushing to ECR Public, which offers 50GB in storage for free. As the name indicates, it's public, so only do this with Docker images you are fine with sharing. The following steps should work similarly when using a private ECR repository, but you will be charged for storage.
+The following steps are for pushing to a **private ECR repository**, which can be used by AWS Lambda or any other AWS service. Private ECR incurs storage charges, so only keep images you need.
+
+``Note: AWS charges about 0.10$ per GB per month in ECR storage, so be mindful about how much you upload, and delete it when not needed anymore or after finishing this guide``
+
+``Note:`` ECR public allows up to 50GB of storage per month for free, but as of right now, ``**AWS Lambda cannot use ECR public repositories as an image**``, so we have to use private ECR repositories
+
+---
 
 ### 7.1 Build the Docker Image
 
 1. Start an **Amazon Linux 2023** container (to bypass Windows credential issues) and mount your project directory and Docker socket:
 
-``Note: run this in the local folder (in the host) that contains the Dockerfile``
+``Note: run this in the local folder (host) that contains the Dockerfile``
 
-```bash
+```powershell
 docker run -it --rm `
   -v ${PWD}:/workspace `
   -v /var/run/docker.sock:/var/run/docker.sock `
@@ -372,33 +371,37 @@ docker run -it --rm `
 
 2. Inside the container, install required tools:
 
-```bash
+```powershell
 dnf update -y
 dnf install -y awscli docker
 ```
 
 3. Navigate to your project folder and build the image:
 
-``You can choose any name you want``
+``You can choose any name you want for the image``
 
-```bash
+```powershell
 cd /workspace
-docker build -t xyz-lambda-xgboost .
+docker build -t amg-lambda-xgboost .
 ```
+
+---
 
 ### 7.2 Test the Container Locally
 
 Run the container to ensure it works correctly with the Lambda Runtime Interface Emulator (RIE):
 
-```bash
-docker run -p 9000:8080 xyz-lambda-xgboost
+``Note: You will need the access key and secret access key for an IAM user with permissions to fetch models from SageMaker/S3 (the one we created in the previous step)``
+
+```powershell
+docker run -p 9000:8080 --env AWS_ACCESS_KEY_ID=<your-access-key> --env AWS_SECRET_ACCESS_KEY=<your-secret-access-key> --env AWS_DEFAULT_REGION=<your-region> amg-lambda-xgboost
 ```
 
 Test with a sample request:
 
-```bash
-curl -X POST http://localhost:9000/2015-03-31/functions/function/invocations \
-  -H "Content-Type: application/json" \
+```powershell
+curl -X POST http://localhost:9000/2015-03-31/functions/function/invocations ^
+  -H "Content-Type: application/json" ^
   -d "{\"instances\":[{\"Age\":80,\"Sex\":\"male\",\"Pclass\":3}]}"
 ```
 
@@ -408,39 +411,50 @@ Expected response:
 {"statusCode":200,"body":"{\"predictions\":[0]}"}
 ```
 
+---
+
 ### 7.3 Configure your AWS credentials
 
-``Note: You will need the public access key and secret access key for an IAM user with suitable permissions. These are the ones we got in the previous step``
-
-```bash
-aws configure  # Enter your AWS credentials
+```powershell
+aws configure  # Enter your private IAM user credentials (Access Key / Secret) from the previous step
 ```
 
-### 7.4 Create the ECR Public repository
-``Note: since we are using ECR Public we must use the us-east-1 region, as it's the only one where it's available``
-````bash
-aws ecr-public create-repository \
-  --repository-name amg-lambda-xgboost \
-  --region us-east-1
-````
+---
 
-After this, you should see in the AWS Console that, if you navigate to ``ECR > Public Registry > Repositories``, your repository is there. There you can see its URI, which contains the ``public registry alias`` tht will be needed for pushing.
+### 7.4 Create the Private ECR Repository
+``Use the region you prefer``
 
-### 7.5 Authenticate Docker to ECR Public
-```bash
-aws ecr-public get-login-password --region us-east-1 \
-  | docker login --username AWS --password-stdin public.ecr.aws
+```powershell
+aws ecr create-repository --repository-name amg-lambda-xgboost --region eu-west-3
 ```
 
-### 7.6 Tag and Push the Image
+``Note: You might get an error like "Unable to redirect output to pager. Received the following error when opening pager:
+[Errno 2] No such file or directory: 'less'". Pay no attention to it``
 
-Assuming your **public registry alias** is `a1b2c3d4`:
+After this, you should see the repository in the AWS Console under **ECR > Private Registry > Repositories**. Note the repository URI, it will be used in the next steps.
 
-```bash
-docker tag amg-lambda-xgboost:latest \
-  public.ecr.aws/a1b2c3d4/xyz-lambda-xgboost:latest
+---
 
-docker push public.ecr.aws/a1b2c3d4/xyz-lambda-xgboost:latest
+### 7.5 Authenticate Docker to Private ECR
+
+```powershell
+aws ecr get-login-password --region eu-west-3 | docker login --username AWS --password-stdin <your-aws-account-id>.dkr.ecr.eu-west-3.amazonaws.com
 ```
 
-After this step, the container image is fully pushed to **ECR Public**, ready to be used in Lambda or any other AWS service.
+---
+
+### 7.6 Tag the Docker Image for Private ECR
+
+```powershell
+docker tag amg-lambda-xgboost:latest <your-aws-account-id>.dkr.ecr.eu-west-3.amazonaws.com/amg-lambda-xgboost:latest
+```
+
+---
+
+### 7.7 Push the Docker Image to Private ECR
+
+```powershell
+docker push <your-aws-account-id>.dkr.ecr.eu-west-3.amazonaws.com/amg-lambda-xgboost:latest
+```
+
+After this step, the container image is fully pushed to **Private ECR**, ready to be used in **AWS Lambda** or other AWS services.
