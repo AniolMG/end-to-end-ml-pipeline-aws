@@ -75,6 +75,8 @@ EDA was completed in the previous project, therefore this repository does not in
 
 ---
 
+``Note: In this guide, we use the eu-west-3 region as a reference. This region should work for all users, but in a real deployment you should choose the region that is most appropriate for your model’s target location.``
+
 ## 1️⃣ S3 + IAM Setup
 
 The first component of the pipeline is secure cloud storage.
