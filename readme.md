@@ -462,5 +462,3 @@ docker push <your-aws-account-id>.dkr.ecr.eu-west-3.amazonaws.com/amg-lambda-xgb
 ``Note: ECR logins expire after 12 hours. If you followed this guide and after running the command you get an error "403 Forbidden", re-authenticate to ECR (step 7.5) and run this command again.``
 
 After this step, the container image is fully pushed to **Private ECR**, ready to be used in **AWS Lambda** or other AWS services.
-
-docker push 344809604964.dkr.ecr.eu-west-3.amazonaws.com/amg-lambda-xgboost:latest
