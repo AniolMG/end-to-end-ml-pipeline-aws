@@ -604,3 +604,109 @@ These values ensure the function can load the model and make predictions without
 
 After this step, the Lambda function is fully deployed and ready to serve predictions from the container image.
 
+## 9️⃣ Setting Up the API Gateway for Titanic Predictions
+
+Once the Lambda function is ready, the next step is to expose it through an API so that it can be called from external clients.
+
+---
+
+### 9.1 Create an HTTP API
+
+1. Go to **API Gateway** in the AWS Console and click **Create API**.
+2. In the **HTTP API** section, click **Build**.
+3. Configure the API:
+   - Name: `Titanic-HTTP-API`
+   - Click **Next**.
+   - No need to configure routes yet, click **Next**.
+   - We'll define stages later, click **Next**.
+   - Click **Create**.
+
+> The API is created, but not yet functional. Next, we'll define a route and attach our Lambda function.
+
+---
+
+### 9.2 Define the Route
+
+1. Navigate to **Develop > Routes**.
+2. Click **Create**.
+3. Configure the route:
+   - **Method:** `POST` (we'll send JSON payloads)
+   - **Route:** `/predict`
+   - Click **Create**.
+
+---
+
+### 9.3 Attach Lambda Integration
+
+1. Still in **Develop > Routes**, select the `POST` method under `/predict`.
+2. Inside the "Route Details" box click **Attach integration** → **Create and attach an integration**.
+3. Set up the integration:
+   - **Integration type:** `Lambda function`
+   - **Region:** Select the correct AWS region
+   - **Lambda function:** Choose the function we created before (ARN ending with `:TitanicLambda`)
+   - Click **Create**
+
+> Now, the route `/predict` is connected to your Lambda function.
+
+---
+
+### 9.4 Deploy the API
+
+1. Go to **Deploy > Stages**.
+2. Click **Create** under the **Stages for Titanic-HTTP-API** box.
+3. Enter a **Stage name**, e.g., `prod`.
+4. Click **Create**.
+5. Click **Deploy** on the top right:
+   - Choose the `prod` stage in the dropdown
+   - Click **Deploy**
+
+6. After deployment, in **Stage details**, you'll see the **Invoke URL**:
+
+```
+https://<api-id>.execute-api.<region>.amazonaws.com/prod/
+```
+
+> The full endpoint for predictions is:
+```
+https://<api-id>.execute-api.<region>.amazonaws.com/prod/predict
+```
+
+---
+
+### 9.5 Test the API Gateway
+
+1. On your local machine, create a Python virtual environment in the root folder of your project:
+
+```powershell
+python -m venv apiTestEnv
+```
+
+2. Activate it:
+
+```powershell
+.\apiTestEnv\Scripts\activate.bat
+```
+
+3. Install the `requests` library:
+
+```powershell
+pip install requests
+```
+
+4. Run your test script (e.g., `testAPI.py`):
+
+```powershell
+python src/testAPI.py
+```
+
+5. When prompted, enter your API Gateway URL and input passenger data.
+
+6. Expected example output:
+
+```text
+Response from Lambda API:
+{'predictions': [1, 0, 1]}
+```
+
+> Now your public API to serve Titanic predictions is fully set up and functional.
+
