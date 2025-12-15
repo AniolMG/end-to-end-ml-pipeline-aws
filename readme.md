@@ -304,7 +304,9 @@ Below is a full policy JSON that grants access to:
             "Sid": "S3AccessToMLBucket",
             "Effect": "Allow",
             "Action": [
-                "s3:*"
+                "s3:GetObject",
+                "s3:PutObject",
+                "s3:ListBucket"
             ],
             "Resource": [
                 "arn:aws:s3:::ml-pipeline-project-aniolmg",
@@ -312,14 +314,12 @@ Below is a full policy JSON that grants access to:
             ]
         },
         {
-            "Sid": "PrivateECRFullAccess",
+            "Sid": "ECRCreateRepository",
             "Effect": "Allow",
             "Action": [
-                "ecr:*"
+                "ecr:CreateRepository"
             ],
-            "Resource": [
-                "arn:aws:ecr:eu-west-3:<your-aws-account-id>:repository/*"
-            ]
+            "Resource": "*"
         },
         {
             "Sid": "ECRAuthToken",
@@ -330,37 +330,65 @@ Below is a full policy JSON that grants access to:
             "Resource": "*"
         },
         {
-            "Sid": "LambdaAccess",
+            "Sid": "PrivateECRPushPull",
             "Effect": "Allow",
             "Action": [
-                "lambda:*"
+                "ecr:BatchCheckLayerAvailability",
+                "ecr:GetDownloadUrlForLayer",
+                "ecr:BatchGetImage",
+                "ecr:PutImage",
+                "ecr:InitiateLayerUpload",
+                "ecr:UploadLayerPart",
+                "ecr:CompleteLayerUpload",
+                "ecr:DescribeRepositories"
             ],
-            "Resource": "*"
+            "Resource": "arn:aws:ecr:eu-west-3:<your-aws-account-id>:repository/amg-lambda-xgboost"
         },
         {
-            "Sid": "SageMakerAccess",
+            "Sid": "LambdaLimitedAccess",
             "Effect": "Allow",
             "Action": [
-                "sagemaker:*"
+                "lambda:CreateFunction",
+                "lambda:UpdateFunctionCode",
+                "lambda:UpdateFunctionConfiguration",
+                "lambda:GetFunction",
+                "lambda:InvokeFunction"
+            ],
+            "Resource": [
+                "arn:aws:lambda:eu-west-3:<your-aws-account-id>:function:TitanicLambda",
+                "arn:aws:lambda:eu-west-3:<your-aws-account-id>:function:TitanicLambda:*"
+            ]
+        },
+        {
+            "Sid": "SageMakerReadAccess",
+            "Effect": "Allow",
+            "Action": [
+                "sagemaker:ListModelPackages",
+                "sagemaker:DescribeModelPackage",
+                "sagemaker:DescribeModelPackageGroup"
             ],
             "Resource": [
                 "arn:aws:sagemaker:eu-west-3:<your-aws-account-id>:model-package-group/TitanicModel",
-                "arn:aws:sagemaker:eu-west-3:<your-aws-account-id>:*"
+                "arn:aws:sagemaker:eu-west-3:<your-aws-account-id>:model-package/*"
             ]
         },
         {
             "Sid": "CloudWatchLogsForLambda",
             "Effect": "Allow",
             "Action": [
-                "logs:*"
+                "logs:CreateLogGroup",
+                "logs:CreateLogStream",
+                "logs:PutLogEvents"
             ],
-            "Resource": "*"
+            "Resource": [
+                "arn:aws:logs:eu-west-3:<your-aws-account-id>:log-group:/aws/lambda/TitanicLambda:*"
+            ]
         }
     ]
 }
 ```
 
-Create a user with this policy using the AWS IAM service. The policy could be more fine-grained, but it's fine for this test project. Once it's created, access it (click on it) and go to ``Security credentials``.
+Create a user with this policy using the AWS IAM service. The policy perhaps could be more fine-grained, but it's fine for this test project. Once it's created, access it (click on it) and go to ``Security credentials``.
 
 Then, look for the tab that says ``Access keys (0)`` and click ``Create access key``.
 
