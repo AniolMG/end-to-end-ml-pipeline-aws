@@ -391,10 +391,7 @@ The following steps are for pushing to a **private ECR repository**, which can b
 ``Note: run this in the local folder (host) that contains the Dockerfile``
 
 ```powershell
-docker run -it --rm `
-  -v ${PWD}:/workspace `
-  -v /var/run/docker.sock:/var/run/docker.sock `
-  amazonlinux:2023
+docker run -it --rm -v ${PWD}:/workspace -v /var/run/docker.sock:/var/run/docker.sock amazonlinux:2023
 ```
 
 2. Inside the container, install required tools:
@@ -428,9 +425,7 @@ docker run -p 9000:8080 --env AWS_ACCESS_KEY_ID=<your-access-key> --env AWS_SECR
 Test with a sample request:
 
 ```powershell
-curl -X POST http://localhost:9000/2015-03-31/functions/function/invocations ^
-  -H "Content-Type: application/json" ^
-  -d "{\"instances\":[{\"Age\":80,\"Sex\":\"male\",\"Pclass\":3}]}"
+curl -X POST http://localhost:9000/2015-03-31/functions/function/invocations -H "Content-Type: application/json" -d "{\"instances\":[{\"Age\":80,\"Sex\":\"male\",\"Pclass\":3}]}"
 ```
 
 Expected response:
