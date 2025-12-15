@@ -17,6 +17,7 @@ The workflow includes:
 - **SageMaker Model Registry** for versioning, staging, and approving trained models
 - **Lambda function packaged as a container** to serve predictions, automatically using the latest approved model
 - **Public HTTP API via API Gateway** for serving predictions to external clients
+- **Private HTTP API via API Gateway + IAM authentication** for serving only authorized users
 
 
 ---
@@ -96,6 +97,14 @@ EDA was completed in the previous project, therefore this repository does not in
    - Use the stage's Invoke URL combined with `/predict` to send requests  
    - Test the endpoint from a local Python environment using the `requests` library  
    The API now allows external clients to send data and receive predictions from the Lambda function.
+
+10. **Securing the API**
+    Use IAM aothorization to make the API secure:
+    - Make the API private by restricting access to authorized IAM users only.
+    - Use API Gateway authorization mechanisms
+    - Ensure only IAM users with the proper permissions can invoke the endpoint
+    - Test again using the `requests`, `requests-aws4auth` and `boto3` libraries.
+    The API now requires IAM authentication to be used by external clients.
 
 
 
@@ -742,7 +751,7 @@ python -m venv apiTestEnv
 pip install requests
 ```
 
-4. Run your test script (e.g., `testAPI.py`):
+4. Run the `testAPI.py` script:
 
 ```powershell
 python src/testAPI.py
@@ -758,3 +767,63 @@ Response from Lambda API:
 ```
 
 > Now your public API to serve Titanic predictions is fully set up and functional.
+
+## 🔟 Making the API Private (Authenticate via IAM)
+
+In the **API Gateway** service in the AWS console:
+
+1. Go to **Develop > Routes**.
+2. Click on **POST** under the `/predict` endpoint.
+3. Click **Attach authorization**.
+4. In the dropdown, select **IAM (built-in)**.
+5. Click **Attach authorizer**.
+
+> Now, if you try to run `testAPI.py`, it shouldn't work since the API requires authentication (it might take some time for the update to propagate).
+
+---
+
+### 10.1 Update IAM Policy
+
+Add the following statement to the IAM policy you created in step 6:
+
+```json
+{
+    "Sid": "APIGatewayInvoke",
+    "Effect": "Allow",
+    "Action": [
+        "execute-api:Invoke"
+    ],
+    "Resource": [
+        "arn:aws:execute-api:eu-west-3:<your-aws-account-id>:<api-id>/*/POST/predict"
+    ]
+}
+```
+
+- Replace `<api-id>` with your API Gateway ID (found in the API details or in the API URL `https://<api-id>.execute-api.eu-west-3.amazonaws.com`).
+
+---
+
+### 10.2 Install Required Libraries
+
+Use the same virtual environment as before and install the necessary packages:
+
+```bash
+pip install requests requests-aws4auth boto3
+```
+
+---
+
+### 10.3 Run the IAM-Authenticated Test Script
+
+The new script `test_API_IAM_authentication.py` works similarly to the previous `testAPI.py`, but now includes IAM authentication.
+
+```bash
+python src/test_API_IAM_authentication.py
+```
+
+1. Enter your **AWS Access Key ID** and **AWS Secret Access Key** for the IAM user (same credentials used in step 7.3).
+2. Select the corresponding **AWS region**.
+3. Input passengers' details as before.
+
+> The API will now only respond to requests authenticated with valid IAM credentials.
+
