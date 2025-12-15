@@ -292,7 +292,7 @@ Below is a full policy JSON that grants access to:
                 "ecr:*"
             ],
             "Resource": [
-                "arn:aws:ecr:eu-west-3:344809604964:repository/*"
+                "arn:aws:ecr:eu-west-3:<your-aws-account-id>:repository/*"
             ]
         },
         {
@@ -318,8 +318,8 @@ Below is a full policy JSON that grants access to:
                 "sagemaker:*"
             ],
             "Resource": [
-                "arn:aws:sagemaker:eu-west-3:344809604964:model-package-group/TitanicModel",
-                "arn:aws:sagemaker:eu-west-3:344809604964:*"
+                "arn:aws:sagemaker:eu-west-3:<your-aws-account-id>:model-package-group/TitanicModel",
+                "arn:aws:sagemaker:eu-west-3:<your-aws-account-id>:*"
             ]
         },
         {
@@ -380,11 +380,11 @@ dnf install -y awscli docker
 
 3. Navigate to your project folder and build the image:
 
-``You can choose any name you want for the image``
+``You can choose any name you want for the image. Make sure that you use the --platform linux/amd64 argument so that the image is compatible with the Lambda runtime.``
 
 ```powershell
 cd /workspace
-docker build -t amg-lambda-xgboost .
+docker build --platform linux/amd64 -t amg-lambda-xgboost .
 ```
 
 ---
@@ -462,3 +462,145 @@ docker push <your-aws-account-id>.dkr.ecr.eu-west-3.amazonaws.com/amg-lambda-xgb
 ``Note: ECR logins expire after 12 hours. If you followed this guide and after running the command you get an error "403 Forbidden", re-authenticate to ECR (step 7.5) and run this command again.``
 
 After this step, the container image is fully pushed to **Private ECR**, ready to be used in **AWS Lambda** or other AWS services.
+
+## 8️⃣ Deploying the Lambda Function
+
+Once the Docker image is available in **Private ECR**, the next step is to create the Lambda function that will serve predictions.
+
+---
+
+### 8.1 Create an IAM Role for Lambda Execution
+
+Before creating the function, we need an IAM role that gives Lambda permissions to:
+- Write logs to CloudWatch
+- Read the latest approved model from SageMaker Model Registry
+- Access S3 to fetch model artifacts
+
+Assuming the function will be called `TitanicLambda`, the IAM role should have the following policies:
+
+**CloudWatch Logs Policy:**
+```json
+{
+	"Version": "2012-10-17",
+	"Statement": [
+		{
+			"Effect": "Allow",
+			"Action": "logs:CreateLogGroup",
+			"Resource": "arn:aws:logs:eu-west-3:<your-aws-account-id>:*"
+		},
+		{
+			"Effect": "Allow",
+			"Action": [
+				"logs:CreateLogStream",
+				"logs:PutLogEvents"
+			],
+			"Resource": [
+				"arn:aws:logs:eu-west-3:<your-aws-account-id>:log-group:/aws/lambda/TitanicLambda:*"
+			]
+		}
+	]
+}
+```
+
+**SageMaker Read Access:**
+```json
+{
+	"Version": "2012-10-17",
+	"Statement": [
+		{
+			"Sid": "ReadModelRegistry",
+			"Effect": "Allow",
+			"Action": [
+				"sagemaker:ListModelPackages",
+				"sagemaker:DescribeModelPackage"
+			],
+			"Resource": "*"
+		}
+	]
+}
+```
+
+**S3 Access for Model Artifacts:**
+```json
+{
+	"Version": "2012-10-17",
+	"Statement": [
+		{
+			"Sid": "ListMLBucket",
+			"Effect": "Allow",
+			"Action": [
+				"s3:ListBucket"
+			],
+			"Resource": "arn:aws:s3:::ml-pipeline-project-aniolmg"
+		},
+		{
+			"Sid": "GetModelArtifacts",
+			"Effect": "Allow",
+			"Action": [
+				"s3:GetObject"
+			],
+			"Resource": "arn:aws:s3:::ml-pipeline-project-aniolmg/*"
+		}
+	]
+}
+```
+
+**Why these policies?**
+- CloudWatch logs allow monitoring the Lambda function.
+- SageMaker permissions let the function discover and load the latest approved model.
+- S3 permissions allow fetching the actual model files stored in the bucket.
+
+---
+
+### 8.2 Create Lambda Function from Container Image
+
+1. Go to **AWS Lambda** > **Create function**.
+2. Choose **Container image**.
+3. Enter the function name: `TitanicLambda`.
+4. Click **Browse images**, and choose the image you just pushed to **Private ECR**.
+   - **Important:** Make sure to select the actual **Image**, not the Image index or any other element.
+5. Open the **Change default execution role** dropdown, select **Use an existing role**, and choose the IAM role you created in step 8.1.
+6. Click **Create function**.
+
+---
+
+### 8.3 Update Function Configuration for Cold Start
+
+By default, Lambda has low memory and short timeout. For this model, we recommend:
+- Memory: **2048 MB**
+- Timeout: **30 seconds**
+
+These values ensure the function can load the model and make predictions without timing out during cold starts.
+
+---
+
+### 8.4 Test the Lambda Function
+
+**Sample JSON payload:**
+```json
+{
+  "instances": [
+    { "Age": 22, "Sex": "male", "Pclass": 3 },
+    { "Age": 12, "Sex": "male", "Pclass": 1 },
+    { "Age": 38, "Sex": "female", "Pclass": 1 }
+  ]
+}
+```
+
+**Expected response:**
+```json
+{
+  "statusCode": 200,
+  "body": "{\"predictions\": [0, 1, 1]}"
+}
+```
+
+**Notes:**
+- The first invocation (cold start) may take around **10 seconds**, because Lambda pulls the container and loads the model.
+- Subsequent invocations (warm starts) are much faster, typically around **5 ms**.
+- You can test the function directly in the Lambda console using the **Test** button.
+
+---
+
+After this step, the Lambda function is fully deployed and ready to serve predictions from the container image.
+
