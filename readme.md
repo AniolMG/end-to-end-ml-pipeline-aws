@@ -7,13 +7,17 @@ This project is the cloud-based continuation of [my previous hybrid ML architect
 ---
 
 ## Project Summary
-This repository contains (will contain) an end-to-end ML workflow built entirely on AWS, using:
+This repository implements a fully **cloud-native, end-to-end ML pipeline** on AWS for the Titanic dataset, from data storage to model deployment and serving.
 
-- **Amazon S3** for data & artifact storage  
-- **IAM** for secure, least-privilege access control  
-- **SageMaker Studio** for preprocessing, training, and pipeline orchestration  
-- **SageMaker Model Registry** for versioning, promoting, and organizing trained models
-- ...
+The workflow includes:
+
+- **Data and artifact storage in Amazon S3** with secure bucket policies
+- **IAM roles and policies** for secure, least-privilege access for SageMaker, Lambda, and ECR
+- **SageMaker Studio Pipelines** for training, evaluation, and model registration, ensuring reproducible and automated ML workflows
+- **SageMaker Model Registry** for versioning, staging, and approving trained models
+- **Lambda function packaged as a container** to serve predictions, automatically using the latest approved model
+- **Public HTTP API via API Gateway** for serving predictions to external clients
+
 
 ---
 
@@ -58,19 +62,41 @@ EDA was completed in the previous project, therefore this repository does not in
    - **[requirements.txt](src/lambda_inference/requirements.txt)** → Python dependencies  
    - **[Dockerfile](src/lambda_inference/Dockerfile)** → Multi-stage build to create minimal container
 
-6. **IAM User for ECR Public / Lambda / S3 / SageMaker Access**  
-   User with permissions to:  
-   - Push Docker images to ECR Public  
-   - Access S3 bucket and SageMaker Model Registry  
-   - Deploy and manage Lambda functions  
-   - Monitor logs in CloudWatch
+6. **IAM User Setup for ECR, Lambda, S3, and SageMaker Access**  
+   Create an IAM user with sufficient permissions to:  
+   - Push Docker images to private ECR  
+   - Access S3 bucket containing ML artifacts  
+   - Manage Lambda functions  
+   - Read from SageMaker Model Registry  
+   - Monitor CloudWatch Logs  
+   The user will need Access Key and Secret Key for local Docker build and deployment.
 
-7. **Containerization & Deployment to ECR Public**  
-   Package the Lambda code and dependencies in a Docker container and push to ECR Public:  
-   - Build and test locally using Amazon Linux 2023  
-   - Authenticate with ECR Public  
-   - Tag and push the Docker image  
-   - Image is ready for Lambda deployment or other AWS services
+7. **Containerization & Deployment to ECR**  
+   Package the Lambda function and dependencies in a Docker container:  
+   - Build the image with a multi-stage Dockerfile using Amazon Linux 2023  
+   - Test locally with Lambda Runtime Interface Emulator (RIE)  
+   - Authenticate Docker to private ECR  
+   - Tag and push the Docker image to private ECR  
+   After this, the container is ready for Lambda deployment.
+
+8. **Deploying the Lambda Function**  
+   Create a Lambda function using the Docker image:  
+   - Create an execution IAM role with permissions to read SageMaker models, access S3 artifacts, and write CloudWatch logs  
+   - Create the Lambda function from the container image in private ECR  
+   - Adjust memory (2048 MB) and timeout (30 seconds) for cold starts  
+   - Test the function using a JSON payload containing sample Titanic passenger data  
+   The Lambda function now serves predictions using the latest approved model.
+
+9. **Setting Up the API Gateway**  
+   Expose the Lambda function through a public HTTP API:  
+   - Create an HTTP API in API Gateway  
+   - Define a POST route, e.g., `/predict`  
+   - Attach the Lambda function as the route integration  
+   - Deploy the API to a stage, e.g., `prod`  
+   - Use the stage's Invoke URL combined with `/predict` to send requests  
+   - Test the endpoint from a local Python environment using the `requests` library  
+   The API now allows external clients to send data and receive predictions from the Lambda function.
+
 
 
 ---
@@ -709,4 +735,3 @@ Response from Lambda API:
 ```
 
 > Now your public API to serve Titanic predictions is fully set up and functional.
-
