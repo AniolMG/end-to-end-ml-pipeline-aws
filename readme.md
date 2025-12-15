@@ -282,9 +282,9 @@ The Dockerfile is written in **two stages**:
 
 By organizing your files and using a multi-stage Docker build, you ensure a clean, reproducible, and efficient Lambda container.
 
-## 6️⃣ IAM User Setup for ECR Public, Lambda, S3, and SageMaker Access
+## 6️ IAM User Setup for ECR, Lambda, S3, and SageMaker Access
 
-To push Docker images to ECR Public and allow your Lambda function to fetch models from SageMaker and S3, you need an IAM user with sufficient permissions.
+To push Docker images to ECR and allow your Lambda function to fetch models from SageMaker and S3, you need an IAM user with sufficient permissions.
 
 ### 6.1 Policy for IAM User
 
